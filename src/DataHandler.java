@@ -10,7 +10,7 @@ public class DataHandler {
     private static final String dataFilename = "datafile.dat";
     private static final String indexFilename = "indexfile.dat";
     private static final int BLOCK_SIZE = 32*1024;
-    private Metadata metadata;
+    private static Metadata metadata;
 
     public String getDataFilename() {
         return dataFilename;
@@ -19,7 +19,7 @@ public class DataHandler {
     public String getIndexFilename() {
         return indexFilename;
     }
-    public Metadata getMetadata() {
+    public static Metadata getMetadata() {
         return metadata;
     }
 
@@ -64,12 +64,14 @@ public class DataHandler {
 
         dataFile.write(paddedData);
     }
-
     public long getTotalBlocksInDataFile() {
-        if (metadata == null) {
-            return 0;
+        File file = new File(dataFilename);
+        if (!file.exists()) {
+            return 0; // File doesn't exist, no blocks
         }
-        return metadata.getTotalBlocks();
+
+        long fileSize = file.length(); // Get file size in bytes
+        return (long) Math.ceil((double) fileSize / BLOCK_SIZE); // Calculate total blocks
     }
 
     public void initializeDataFile(int dataDimensions) throws IOException {
@@ -168,55 +170,113 @@ public class DataHandler {
             buffer.putDouble(coordinate);
         }
     }
-
     public void appendRecords(List<Record> records) throws IOException {
-        if (records == null || records.isEmpty()) {
-            throw new IllegalArgumentException("No records to append");
-        }
+        // Open file channel in append mode
+        try (FileChannel fileChannel = FileChannel.open(
+                new File(dataFilename).toPath(),
+                java.nio.file.StandardOpenOption.WRITE,
+                java.nio.file.StandardOpenOption.APPEND)) {
 
-        try (RandomAccessFile dataFile = new RandomAccessFile(dataFilename, "rw");
-             FileChannel fileChannel = dataFile.getChannel()) {
-
-            // Move to the end of the current file to append
-            long dataFileSize = fileChannel.size();
-            fileChannel.position(dataFileSize);
-
-            // Create a buffer to store records
             ByteBuffer buffer = ByteBuffer.allocate(BLOCK_SIZE);
-
-            int maxRecordsInBlock = calculateMaxRecordsInBlock();
-            int recordCountInBlock = 0;
-
             for (Record record : records) {
-                // Write record to buffer
-                writeRecordToBuffer(buffer, record);
-                recordCountInBlock++;
+                writeRecordToBuffer(buffer, record); // Serialize and write each record to the buffer
 
-                // If buffer is full or max records in block is reached, flush it to file
-                if (buffer.position() >= BLOCK_SIZE || recordCountInBlock >= maxRecordsInBlock) {
-                    buffer.flip();
-                    fileChannel.write(buffer);
-                    buffer.clear();
-                    recordCountInBlock = 0;
+                if (buffer.remaining() < 100) { // If buffer is nearly full (100 bytes margin, adjust as needed)
+                    buffer.flip(); // Prepare buffer for writing
+                    fileChannel.write(buffer); // Write the buffer to the file
+                    buffer.clear(); // Clear buffer for next batch of records
                 }
             }
 
-            // Flush remaining data in buffer
+            // Write remaining data in the buffer
             if (buffer.position() > 0) {
-                buffer.flip();
+                buffer.flip(); // Prepare remaining data in buffer for writing
                 fileChannel.write(buffer);
+            }
+
+            // Update metadata using getTotalBlocksInDataFile
+            long totalBlocks = getTotalBlocksInDataFile();
+            metadata = new Metadata(
+                    metadata.getTotalRecords() + records.size(),
+                    totalBlocks, // Use dynamically calculated blocks
+                    metadata.getDataDimensions()
+            );
+
+            // Write updated metadata back to Block 0
+            writeBlock0(metadata, dataFilename);
+        }
+    }
+    public ArrayList<Record> readDataFileBlock(int blockId) throws IOException {
+        // Validate blockId
+        if (blockId < 0) {
+            throw new IllegalArgumentException("Block ID cannot be negative.");
+        }
+
+        File file = new File(dataFilename);
+
+        // Check if file exists
+        if (!file.exists()) {
+            throw new FileNotFoundException("Data file not found: " + dataFilename);
+        }
+
+        // Get the total number of blocks
+        long totalBlocks = getTotalBlocksInDataFile();
+
+        // Ensure the block ID is valid
+        if (blockId >= totalBlocks) {
+            throw new IllegalArgumentException("Block ID " + blockId + " is out of range. Total Blocks: " + totalBlocks);
+        }
+
+        // Calculate the starting byte offset of the block
+        long offset = (long) blockId * BLOCK_SIZE;
+
+        // Prepare the byte buffer to read the block
+        ByteBuffer buffer = ByteBuffer.allocate(BLOCK_SIZE);
+
+        // Open the file and read the specific block
+        try (FileChannel fileChannel = FileChannel.open(file.toPath(), java.nio.file.StandardOpenOption.READ)) {
+            fileChannel.position(offset); // Move to the block's starting position
+            fileChannel.read(buffer);
+        }
+
+        // Prepare the buffer for reading (flip buffer)
+        buffer.flip();
+
+        // Deserialize the block into a list of records
+        ArrayList<Record> records = new ArrayList<>();
+        while (buffer.remaining() > 0) {
+            Record record = readRecordFromBuffer(buffer);
+            if (record != null) {
+                records.add(record);
             }
         }
 
-        // Update metadata
-        long newTotalRecords = metadata.getTotalRecords() + records.size(); // Add new records to total
-        long newTotalBlocks = getTotalBlocksInDataFile(); // Recalculate total blocks
-        metadata = new Metadata(newTotalRecords, newTotalBlocks, metadata.getDataDimensions()); // Update metadata object
-
-        // Save the updated metadata to Block 0
-        writeBlock0(metadata, dataFilename);
+        return records;
     }
 
+    private Record readRecordFromBuffer(ByteBuffer buffer) {
+        try {
+            // Read the record ID
+            long id = buffer.getLong();
+
+            // Read the coordinates
+            ArrayList<Double> coordinates = new ArrayList<>();
+            for (int i = 0; i < metadata.getDataDimensions(); i++) {
+                if (buffer.remaining() >= Double.BYTES) {
+                    coordinates.add(buffer.getDouble());
+                } else {
+                    // Not enough data for a valid record, stop processing
+                    return null;
+                }
+            }
+
+            // Return a new record
+            return new Record(id, coordinates);
+        } catch (Exception e) {
+            // If an error occurs (e.g., incomplete record), return null
+            return null;
+        }
+    }
 
 }
 
