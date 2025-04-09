@@ -11,16 +11,19 @@ public class DataHandler {
     private static final String indexFilename = "indexfile.dat";
     private static final int BLOCK_SIZE = 32*1024;
     private static Metadata metadata;
+    private static IndexMetadata indexMetadata;
 
     public String getDataFilename() {
         return dataFilename;
     }
-
     public String getIndexFilename() {
         return indexFilename;
     }
     public static Metadata getMetadata() {
         return metadata;
+    }
+    public static IndexMetadata getIndexMetadata() {
+        return indexMetadata;
     }
 
     public Metadata readBlock0() throws IOException {
@@ -124,7 +127,7 @@ public class DataHandler {
     }
 
 
-    public int calculateMaxRecordsInBlock() { //Maybe wrong
+    public int calculateMaxRecordsInBlock() {
         if (metadata == null) {
             throw new IllegalStateException("Metadata is not initialized. Cannot calculate max records.");
         }
@@ -277,6 +280,8 @@ public class DataHandler {
             return null;
         }
     }
+
+
 
 }
 

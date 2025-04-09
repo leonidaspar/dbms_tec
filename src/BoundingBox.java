@@ -17,6 +17,13 @@ public class BoundingBox implements Serializable {
         this.center = center;
     }
 
+    public BoundingBox(ArrayList<Bounds> bounds) {
+        this.volume = getVolume();
+        this.perimeter = getPerimeter();
+        this.center = getCenter();
+        this.bounds = bounds;
+    }
+
     public ArrayList<Bounds> getBounds() {
         return bounds;
     }
@@ -74,7 +81,7 @@ public class BoundingBox implements Serializable {
         return findMinDistance(point) <= radius;
     }
 
-    public double findOverlap(BoundingBox box1, BoundingBox box2) {
+    public static double findOverlap(BoundingBox box1, BoundingBox box2) {
         double overlap = 1;
         //For every dimension
         for (int i = 0; i<DataHandler.getMetadata().getDataDimensions(); i++) {
