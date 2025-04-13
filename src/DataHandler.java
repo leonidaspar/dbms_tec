@@ -4,6 +4,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class DataHandler {
     private static final String csvFile = "data.csv";
@@ -54,6 +55,7 @@ public class DataHandler {
 
     }
 
+
     public void writeBlock0(Metadata metadata, String pathToFile) throws IOException {
         RandomAccessFile dataFile = new RandomAccessFile(new File(pathToFile), "rw");
         dataFile.seek(0);
@@ -67,6 +69,7 @@ public class DataHandler {
 
         dataFile.write(paddedData);
     }
+
     public long getTotalBlocksInDataFile() {
         File file = new File(dataFilename);
         if (!file.exists()) {
@@ -76,7 +79,6 @@ public class DataHandler {
         long fileSize = file.length(); // Get file size in bytes
         return (long) Math.ceil((double) fileSize / BLOCK_SIZE); // Calculate total blocks
     }
-
     public void initializeDataFile(int dataDimensions) throws IOException {
         File file = new File(dataFilename);
 
@@ -173,6 +175,7 @@ public class DataHandler {
             buffer.putDouble(coordinate);
         }
     }
+
     public void appendRecords(List<Record> records) throws IOException {
         // Open file channel in append mode
         try (FileChannel fileChannel = FileChannel.open(
@@ -256,7 +259,6 @@ public class DataHandler {
 
         return records;
     }
-
     private Record readRecordFromBuffer(ByteBuffer buffer) {
         try {
             // Read the record ID
@@ -279,6 +281,88 @@ public class DataHandler {
             // If an error occurs (e.g., incomplete record), return null
             return null;
         }
+    }
+
+
+    //Index file operations
+
+    //WRITE READ MIGHT NEED WORK
+    public void writeIndexBlock0(IndexMetadata indexMetadata) throws IOException {
+        try (RandomAccessFile indexFile = new RandomAccessFile(indexFilename, "rw")) {
+            indexFile.seek(0);
+            ByteBuffer buffer = ByteBuffer.allocate(BLOCK_SIZE);
+            buffer.putLong(indexMetadata.getTreeHeight());
+            buffer.putLong(indexMetadata.getTotalIndexfileBlocks());
+
+            byte[] paddedData = new byte[BLOCK_SIZE];
+            System.arraycopy(buffer.array(), 0, paddedData, 0, buffer.position());
+
+            indexFile.write(paddedData);
+        }
+    }
+
+    public IndexMetadata readIndexBlock0() throws IOException {
+        File file = new File(indexFilename);
+
+        if (!file.exists() || file.length() < BLOCK_SIZE) {
+            throw new IOException("Index file does not exist or is too small.");
+        }
+
+        try (RandomAccessFile indexFile = new RandomAccessFile(file, "r")) {
+            indexFile.seek(0);
+            byte[] block = new byte[BLOCK_SIZE];
+            indexFile.readFully(block);
+
+            ByteBuffer buffer = ByteBuffer.wrap(block);
+            long treeHeight = buffer.getLong();
+            long totalBlocks = buffer.getLong();
+
+            indexMetadata = new IndexMetadata(treeHeight, totalBlocks);
+            return indexMetadata;
+        }
+    }
+
+    public long getTotalBlocksInIndexFile() {
+        return indexMetadata.getTotalIndexfileBlocks();
+    }
+
+    public long getTotalLevelsOfTreeIndex() {
+        return indexMetadata.getTreeHeight();
+    }
+
+    static int calculateMaxEntriesInNode() {
+        ArrayList<Entry> entries = new ArrayList<>();
+        int i;
+        for (i = 0; i < Integer.MAX_VALUE; i++) {
+            ArrayList<Bounds> boundsPerDimension = new ArrayList<>();
+            for (int d = 0; d < metadata.getDataDimensions(); d++)
+                boundsPerDimension.add(new Bounds(0.0,0.0));
+            Entry entry = new LeafEntry (new Random().nextLong(),new Random().nextLong(), boundsPerDimension);
+            entry.setBlockIdOfChildNode(new Random().nextLong());
+            entries.add(entry);
+            try {
+                // Serialize Node to byte array
+                ByteArrayOutputStream nodeOut = new ByteArrayOutputStream();
+                ObjectOutputStream nodeOos = new ObjectOutputStream(nodeOut);
+                nodeOos.writeObject(new Node(new Random().nextInt(), entries));
+                nodeOos.flush();
+                byte[] nodeBytes = nodeOut.toByteArray();
+
+                // Serialize the length (like the original method does)
+                ByteArrayOutputStream lenOut = new ByteArrayOutputStream();
+                ObjectOutputStream lenOos = new ObjectOutputStream(lenOut);
+                lenOos.writeInt(nodeBytes.length);
+                lenOos.flush();
+                byte[] lenBytes = lenOut.toByteArray();
+
+                // Check total size against block size
+                if (nodeBytes.length + lenBytes.length > BLOCK_SIZE) {
+                    break;
+                }
+        } catch (IOException e) {
+            e.printStackTrace();}
+        }
+        return i;
     }
 
 

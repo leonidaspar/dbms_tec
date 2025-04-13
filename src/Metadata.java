@@ -1,7 +1,7 @@
 public class Metadata {
     private long totalRecords;
     private long totalBlocks;
-    private long dataDimensions;
+    private static long dataDimensions;
 
     public Metadata(long totalRecords, long totalBlocks, long dataDimensions) {
         this.totalRecords = totalRecords;
@@ -14,7 +14,7 @@ public class Metadata {
     public long getTotalBlocks() {
         return totalBlocks;
     }
-    public long getDataDimensions() {
+    public static long getDataDimensions() {
         return dataDimensions;
     }
     @Override
