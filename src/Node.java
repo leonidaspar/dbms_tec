@@ -17,6 +17,12 @@ public class Node implements Serializable {
         this.level = level;
         this.entries = entries;
     }
+
+    public Node (long level) {
+        this.level = level;
+        this.entries = new ArrayList<>();
+        this.blockId = RStarTree.getRootBlockId();
+    }
     public long getLevel() {
         return level;
     }
@@ -59,7 +65,7 @@ public class Node implements Serializable {
     private ArrayList<EntryBoundingSplit> getSplitAxis () {
         double axisMarginSum = Double.MAX_VALUE;
         ArrayList<EntryBoundingSplit> splitAxisEntryBoundingSplits = new ArrayList<>();
-        for (int i = 0; i < Metadata.getDataDimensions(); i++) {
+        for (int i = 0; i < DataHandler.getDataDimensions(); i++) {
             ArrayList<Entry> upperSort = new ArrayList<>();
             ArrayList<Entry> lowerSort = new ArrayList<>();
 

@@ -2,6 +2,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 import static java.lang.Math.abs;
+import static java.lang.Math.sqrt;
 
 //Implementation of a box of N-dimensions
 public class BoundingBox implements Serializable {
@@ -31,7 +32,7 @@ public class BoundingBox implements Serializable {
     public double getVolume() {
         if (volume==null) {
             double product = 1;
-            for (int i = 0; i < DataHandler.getMetadata().getDataDimensions(); i++) {
+            for (int i = 0; i < DataHandler.getDataDimensions(); i++) {
                 product *= abs(bounds.get(i).getUpper() - bounds.get(i).getLower());
             }
             volume = product;
@@ -42,7 +43,7 @@ public class BoundingBox implements Serializable {
     public double getPerimeter() {
         if (perimeter==null) {
             double sum = 0;
-            for (int i = 0; i < DataHandler.getMetadata().getDataDimensions(); i++) {
+            for (int i = 0; i < DataHandler.getDataDimensions(); i++) {
                 sum += abs(bounds.get(i).getUpper() - bounds.get(i).getLower());
             }
             perimeter = sum;
@@ -53,7 +54,7 @@ public class BoundingBox implements Serializable {
     public ArrayList<Double> getCenter() {
         if (center == null) {
             center = new ArrayList<>();
-            for (int i = 0; i < DataHandler.getMetadata().getDataDimensions(); i++) {
+            for (int i = 0; i < DataHandler.getDataDimensions(); i++) {
                 center.add((bounds.get(i).getLower() + bounds.get(i).getUpper()) / 2);
             }
         }
@@ -63,7 +64,7 @@ public class BoundingBox implements Serializable {
     public double findMinDistance(ArrayList<Double> point) {
         double minDistance = 0;
         double tempDist;
-        for (int d=0; d<DataHandler.getMetadata().getDataDimensions(); d++) {
+        for (int d=0; d<DataHandler.getDataDimensions(); d++) {
             if (getBounds().get(d).getLower() > point.get(d))
                 tempDist = getBounds().get(d).getLower();
             else if (getBounds().get(d).getUpper() < point.get(d))
@@ -73,7 +74,7 @@ public class BoundingBox implements Serializable {
 
             minDistance += Math.pow(point.get(d) - tempDist, 2);
         }
-        return Math.sqrt(minDistance);
+        return sqrt(minDistance);
     }
 
     //True if point's radius overlaps with BoundingBox
@@ -84,7 +85,7 @@ public class BoundingBox implements Serializable {
     public static double findOverlap(BoundingBox box1, BoundingBox box2) {
         double overlap = 1;
         //For every dimension
-        for (int i = 0; i<DataHandler.getMetadata().getDataDimensions(); i++) {
+        for (int i = 0; i<DataHandler.getDataDimensions(); i++) {
             double overlapInDimensionI;
             overlapInDimensionI = Math.min(box1.getBounds().get(i).getUpper(),box2.getBounds().get(i).getUpper())
                     - Math.max(box1.getBounds().get(i).getLower(),box2.getBounds().get(i).getLower());
@@ -99,9 +100,20 @@ public class BoundingBox implements Serializable {
 
     public double findDistanceBetweenCenters (BoundingBox box1, BoundingBox box2) {
         double distance = 0;
-        for (int i = 0; i<DataHandler.getMetadata().getDataDimensions(); i++) {
+        for (int i = 0; i<DataHandler.getDataDimensions(); i++) {
             distance += Math.pow(box1.getCenter().get(i) - box2.getCenter().get(i), 2);
         }
-        return Math.sqrt(distance);
+        return sqrt(distance);
+    }
+
+    // Calculates and returns the euclidean distance value between two bounding boxes's centers
+    static double findDistanceBetweenBoundingBoxes(BoundingBox boundingBoxA, BoundingBox boundingBoxB) {
+        double distance = 0;
+        // For every dimension find the intersection point
+        for (int d = 0; d < DataHandler.getDataDimensions(); d++)
+        {
+            distance += Math.pow(boundingBoxA.getCenter().get(d) - boundingBoxB.getCenter().get(d),2);
+        }
+        return sqrt(distance);
     }
 }

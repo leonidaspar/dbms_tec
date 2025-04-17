@@ -28,7 +28,7 @@ public class ComparatorsForEntries {
     }
 
     //Compare based on volume enlargement if a new BoundingBox was added
-    public class CompareOnVolumeEnlargement implements Comparator<Entry> {
+    public static class CompareOnVolumeEnlargement implements Comparator<Entry> {
         //Array list has 2 values, one for volume, one for volume enlargement for entry
         private HashMap<Entry, ArrayList<Double>> comparisonMap;
 
@@ -55,7 +55,7 @@ public class ComparatorsForEntries {
         }
     }
     //Compare based on overlap increase if a new BoundingBox was added
-    public class CompareOnOverlapIncrease implements Comparator<Entry> {
+    public static class CompareOnOverlapIncrease implements Comparator<Entry> {
         private BoundingBox newBox;
         private ArrayList<Entry> nodeEntries;
         private HashMap<Entry, Double> comparisonMap= new HashMap<>();
@@ -98,11 +98,11 @@ public class ComparatorsForEntries {
     }
 
     //Compare based on entry distance from its encapsulating BoundingBox's center
-    public class CompareOnDistanceFromCenter implements Comparator<Entry> {
+    public static class CompareOnDistanceFromPoint implements Comparator<Entry> {
         //Value (Double) is the distance of the BoundingBox from the center for the given Entry
         private HashMap<Entry, Double> comparisonMap = new HashMap<>();
 
-        public CompareOnDistanceFromCenter(List<Entry> entries, ArrayList<Double> point) {
+        public CompareOnDistanceFromPoint(List<Entry> entries, ArrayList<Double> point) {
             for (Entry entry : entries)
                 comparisonMap.put(entry,entry.getBoundingBox().findMinDistance(point));
         }
@@ -110,7 +110,17 @@ public class ComparatorsForEntries {
         public int compare(Entry en1, Entry en2) {
             return Double.compare(comparisonMap.get(en1),comparisonMap.get(en2));
         }
-
+    }
+    public static class CompareOnDistanceFromCenter implements Comparator<Entry> {
+        private HashMap<Entry, Double> comparisonMap;
+        public CompareOnDistanceFromCenter(List<Entry> entries, BoundingBox boundingBox) {
+            comparisonMap = new HashMap<>();
+            for (Entry entry : entries)
+                comparisonMap.put(entry,BoundingBox.findDistanceBetweenBoundingBoxes(entry.getBoundingBox(),boundingBox));
+        }
+        public int compare(Entry en1, Entry en2) {
+            return Double.compare(comparisonMap.get(en1),comparisonMap.get(en2));
+        }
     }
 }
 

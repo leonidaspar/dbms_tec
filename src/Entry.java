@@ -7,8 +7,10 @@ public class Entry implements Serializable {
     private BoundingBox boundingBox;
     private Long blockIdOfChildNode;
 
-    //IMPLEMENT CONSTRUCTOR WITH Node AFTER IMPLEMENTING Node
-
+    public Entry(Node childNode) {
+        blockIdOfChildNode = childNode.getBlockId();
+        setBoundingBoxToFitEntries(childNode.getEntries());
+    }
     public Entry(BoundingBox boundingBox) {
         this.boundingBox = boundingBox;
     }

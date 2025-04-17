@@ -20,7 +20,7 @@ public class Bounds implements Serializable {
     //Returns ArrayList with the bounds for each dimension and the minimum bounds needed to fit the entries given
     public static ArrayList<Bounds> findMinBounds(ArrayList<Entry> entries) {
         ArrayList<Bounds> minBounds = new ArrayList();
-        for (int i = 0; i < DataHandler.getMetadata().getDataDimensions(); i++) {
+        for (int i = 0; i < DataHandler.getDataDimensions(); i++) {
             Entry lower = Collections.min(entries,new ComparatorsForEntries.CompareOnBounds(entries,i,false));
             Entry upper = Collections.max(entries,new ComparatorsForEntries.CompareOnBounds(entries,i,true));
             minBounds.add(new Bounds(lower.getBoundingBox().getBounds().get(i).getLower(),upper.getBoundingBox().getBounds().get(i).getUpper()));
@@ -38,7 +38,7 @@ public class Bounds implements Serializable {
     //Returns ArrayList with the bounds for each dimension and the minimum bounds needed to merge the BoundingBoxes given
     public static ArrayList<Bounds> findMinBounds (BoundingBox box1, BoundingBox box2) {
         ArrayList<Bounds> minBounds = new ArrayList<>();
-        for (int i = 0; i < DataHandler.getMetadata().getDataDimensions(); i++) {
+        for (int i = 0; i < DataHandler.getDataDimensions(); i++) {
             double lowerMin;
             double upperMax;
             lowerMin = Math.min(box1.getBounds().get(i).getLower(), box2.getBounds().get(i).getLower());

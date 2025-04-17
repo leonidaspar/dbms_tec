@@ -1,3 +1,4 @@
+
 import java.util.ArrayList;
 
 public class Record {
@@ -9,11 +10,26 @@ public class Record {
         this.coordinates = coordinates;
     }
 
+    Record(String recordInString)
+    {
+        String[] stringArray;
+        stringArray = recordInString.split(","); // given string will be split by the argument delimiter provided
+
+        if (stringArray.length != DataHandler.getDataDimensions() + 1)
+            throw new IllegalArgumentException("In order to convert a String to a Record, a Long and a total amount of coordinates for each dimension must be given");
+
+        id = Long.parseLong(stringArray[0]);
+        coordinates = new ArrayList<>();
+        for (int i = 1; i < stringArray.length ; i++)
+            coordinates.add(Double.parseDouble(stringArray[i]));
+    }
+
+
     public long getId() {
         return id;
     }
-    public ArrayList<Double> getCoordinates() {
-        return coordinates;
+    public double getCoordinateInDimension(int dimension) {
+        return coordinates.get(dimension);
     }
     @Override
     public String toString() {
