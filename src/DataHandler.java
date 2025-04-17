@@ -326,7 +326,7 @@ public class DataHandler {
             raf.close();
 
             // If this node is the root and the tree level has changed, update the metadata
-            if (node.getBlockId() == RStarTree.getRootNodeBlockId() && DataHandler.levelsOfTreeIndex != levelsOfTreeIndex)
+            if (node.getBlockId() == RStarTree.getRootBlockId() && DataHandler.levelsOfTreeIndex != levelsOfTreeIndex)
                 updateLevelsOfTreeIndexFile();
         } catch (IOException e) {
             throw new RuntimeException(e);
