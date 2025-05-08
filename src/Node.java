@@ -7,9 +7,23 @@ import java.util.ArrayList;
  * The node supports dynamic splitting using R*-tree heuristics (overlap, area, and margin-based criteria).
  */
 public class Node implements Serializable {
-    private static final int MAX_ENTRIES = DataHandler.calculateMaxEntriesInNode();
-    private static final int MIN_ENTRIES = (int) (0.4 * MAX_ENTRIES);
+   // private static final int MAX_ENTRIES = DataHandler.calculateMaxEntriesInNode();
+   // private static final int MIN_ENTRIES = (int) (0.4 * MAX_ENTRIES);
     private long level; //Level of Node in the tree: 0 = leaf, higher values = internal nodes
+    // for delete those need change
+    private static volatile Integer MAX_ENTRIES = null;
+    private static volatile Integer MIN_ENTRIES = null;
+
+    private static int max() {
+        if (MAX_ENTRIES == null) {
+            int m = DataHandler.calculateMaxEntriesInNode();
+            MAX_ENTRIES = m;
+            MIN_ENTRIES = (int) (0.4 * m);
+        }
+        return MAX_ENTRIES;
+    }
+    private static int min() { return max() == 0 ? 0 : MIN_ENTRIES; }
+
     private long blockId; //Unique identifier for disk block
     private ArrayList<Entry> entries; //Entries of this node
 
@@ -162,5 +176,14 @@ public class Node implements Serializable {
     public ArrayList<Node> split() {
         ArrayList<EntryBoundingSplit> splitAxis = getSplitAxis();
         return getSplitIndex(splitAxis);
+    }
+    /* --- add right after addEntry(...) --- */
+    public void removeEntry(Entry entry) {
+        entries.remove(entry);
+    }
+
+    /** Convenience – true when this node’s children are LeafEntry objects */
+    public boolean isLeaf() {
+        return level == RStarTree.getLeafLevel();
     }
 }

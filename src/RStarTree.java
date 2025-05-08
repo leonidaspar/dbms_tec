@@ -243,4 +243,127 @@ public class RStarTree {
     }
 
 
+    // Algorithm for deleting a record based on Beckmann et al. (R*-tree paper)
+    
+    public boolean delete(long recordId) {
+        // ❶ Search path stacks (node + entry that led to it)
+        ArrayList<Node> pathNodes = new ArrayList<>();
+        ArrayList<Entry> pathEntries = new ArrayList<>();
+
+        // step down to the leaf that *may* contain the target
+        Node n = getRoot();
+        pathNodes.add(n);
+        while (!n.isLeaf()) {
+            // pick the child whose bbox contains the point id (quick & dirty)
+            Entry next = null;
+            for (Entry e : n.getEntries()) {
+                if (recordIdInside(e, recordId)) {   // helper below
+                    next = e; break;
+                }
+            }
+            if (next == null) return false;          // not found
+            pathEntries.add(next);
+            n = DataHandler.readIndexFileBlock(next.getBlockIdOfChildNode());
+            if (n == null) return false;
+            pathNodes.add(n);
+        }
+
+        /* ❷ Locate the LeafEntry inside that leaf node                    */
+        LeafEntry target = null;
+        for (Entry e : n.getEntries()) {
+            if (e instanceof LeafEntry le && le.getRecordId() == recordId) {
+                target = le; break;
+            }
+        }
+        if (target == null) return false;            // id absent
+
+        n.removeEntry(target);                       // physical removal
+        DataHandler.updateIndexFileBlock(n, levels); // persist leaf
+
+        /* ❸ Condense-Tree upward                                         */
+        condenseTree(pathNodes, pathEntries);
+
+        /* ❹ Root adjustment (if root shrank and is not a leaf)           */
+        Node root = getRoot();
+        if (!root.isLeaf() && root.getEntries().size() == 1) {
+            Entry only = root.getEntries().getFirst();
+            Node newRoot = DataHandler.readIndexFileBlock(only.getBlockIdOfChildNode());
+            newRoot.setBlockId(ROOT_BLOCKID);
+            levels--;                                 // tree got shorter
+            DataHandler.updateIndexFileBlock(newRoot, levels);
+        }
+        return true;
+    }
+
+    /* ------------------------------------------------------------------
+       Condense-Tree – Algorithm from Beckmann et al. (R*-tree paper)
+       ------------------------------------------------------------------ */
+    private void condenseTree(ArrayList<Node> nodePath,
+                              ArrayList<Entry> entryPath) {
+
+        ArrayList<Entry> orphaned = new ArrayList<>();   // re-insert later
+
+        // walk back from leaf toward root
+        for (int i = nodePath.size() - 1; i >= 0; i--) {
+            Node n = nodePath.get(i);
+
+            // root handled separately in delete()
+            if (n.getBlockId() == ROOT_BLOCKID) {
+                DataHandler.updateIndexFileBlock(n, levels);
+                break;
+            }
+
+            if (n.getEntries().size() < Node.getMinEntriesInNode()) {
+                // under-full: remove entry that points to n from its parent
+                Node parent = nodePath.get(i - 1);
+                Entry parentPtr = entryPath.get(i - 1);
+                parent.removeEntry(parentPtr);
+                DataHandler.updateIndexFileBlock(parent, levels);
+
+                // collect all entries of n for reinsertion (if not leaf)
+                orphaned.addAll(n.getEntries());
+            } else {
+                // just shrink MBR in parent entry
+                if (i - 1 >= 0) {
+                    Node parent = nodePath.get(i - 1);
+                    Entry parentPtr = entryPath.get(i - 1);
+                    parentPtr.setBoundingBoxToFitEntries(n.getEntries());
+                    DataHandler.updateIndexFileBlock(parent, levels);
+                }
+                DataHandler.updateIndexFileBlock(n, levels);
+            }
+        }
+
+        /* Re-insert orphaned entries (depth first)                        */
+        for (Entry e : orphaned) {
+            if (e instanceof LeafEntry le)
+                insert(null, null, le, LEAF_LEVEL);
+            else
+                insert(null, null, e, (int) (nodeLevelFromEntry(e))); // helper
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    private boolean recordIdInside(Entry e, long recordId) {
+        // super-cheap check: compare lower≤id≤upper along pseudo-“id” axis
+        BoundingBox b = e.getBoundingBox();
+        Bounds idDim = b.getBounds().getFirst();
+        return idDim.getLower() <= recordId && recordId <= idDim.getUpper();
+    }
+    private long nodeLevelFromEntry(Entry e) {
+        // called only for internal entries during reinsertion
+        Node n = DataHandler.readIndexFileBlock(e.getBlockIdOfChildNode());
+        return n == null ? LEAF_LEVEL : n.getLevel();
+    }
+    
+
+    
+    // to use deletion
+    /*
+    boolean ok = tree.delete(42);
+    System.out.println("deleted? " + ok);
+     
+
+
+     */
 }
