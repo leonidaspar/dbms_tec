@@ -40,6 +40,21 @@ public class RStarTree {
         return LEAF_LEVEL;
     }
 
+    public ArrayList<Long> getNearestNeighbours(ArrayList<Double> point, int howMany) {
+        Query query = new NearestNeighboursQuery(point,howMany);
+        return query.getQueryRecordIDs(DataHandler.readIndexFileBlock(ROOT_BLOCKID));
+    }
+
+    public ArrayList<Long> getDataInBB(BoundingBox boundingBox) {
+        Query query = new BoundingBoxRangeQuery(boundingBox);
+        return query.getQueryRecordIDs(DataHandler.readIndexFileBlock(ROOT_BLOCKID));
+    }
+
+    public ArrayList<Long> getDataInCircle(ArrayList<Double> point, double radius) {
+        Query query = new PointRadiusQuery(point,radius);
+        return query.getQueryRecordIDs(DataHandler.readIndexFileBlock(ROOT_BLOCKID));
+    }
+
 
     public void addRecord(Record record, long dataFileBlockId) {
         ArrayList<Bounds> boundsForEachDimension = new ArrayList<>();

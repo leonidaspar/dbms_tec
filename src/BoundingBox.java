@@ -98,6 +98,15 @@ public class BoundingBox implements Serializable {
         return overlap;
     }
 
+    public static boolean checkOverlap(BoundingBox box1, BoundingBox box2) {
+        for (int i=0; i<DataHandler.getDataDimensions(); i++) {
+            double overlapInDimension = Math.min(box1.getBounds().get(i).getUpper(),box2.getBounds().get(i).getUpper()) - Math.max(box1.getBounds().get(i).getLower(),box2.getBounds().get(i).getLower());
+            if (overlapInDimension<0)
+                return false;
+        }
+        return true;
+    }
+
     public double findDistanceBetweenCenters (BoundingBox box1, BoundingBox box2) {
         double distance = 0;
         for (int i = 0; i<DataHandler.getDataDimensions(); i++) {
