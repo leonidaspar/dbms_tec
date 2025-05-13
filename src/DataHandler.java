@@ -1,7 +1,5 @@
 
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -288,7 +286,7 @@ public class DataHandler {
                 ArrayList<Integer> metadata = readBlock0(indexFilename);
                 if (metadata==null)
                     throw new IllegalStateException("Could not read block 0 from file " + indexFilename);
-                DataHandler.dataDimensions = metadata.getFirst();
+                    DataHandler.dataDimensions = metadata.get(0); // neo fixed for deletion
                 if (DataHandler.dataDimensions <= 0)
                     throw new IllegalStateException("Data dimensions must be greater than 0");
                 if (metadata.get(1) > BLOCK_SIZE)

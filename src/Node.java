@@ -9,59 +9,49 @@ import java.util.ArrayList;
 public class Node implements Serializable {
    // private static final int MAX_ENTRIES = DataHandler.calculateMaxEntriesInNode();
    // private static final int MIN_ENTRIES = (int) (0.4 * MAX_ENTRIES);
-    private long level; //Level of Node in the tree: 0 = leaf, higher values = internal nodes
-    // for delete those need change
-    private static volatile Integer MAX_ENTRIES = null;
-    private static volatile Integer MIN_ENTRIES = null;
+   private static volatile Integer MAX_ENTRIES = null;
+   private static volatile Integer MIN_ENTRIES = null;
 
-    private static int max() {
-        if (MAX_ENTRIES == null) {
-            int m = DataHandler.calculateMaxEntriesInNode();
-            MAX_ENTRIES = m;
-            MIN_ENTRIES = (int) (0.4 * m);
-        }
-        return MAX_ENTRIES;
-    }
-    private static int min() { return max() == 0 ? 0 : MIN_ENTRIES; }
+   private static int max() {                                // -neo fixed deletion
+       if (MAX_ENTRIES == null) {
+           int m = DataHandler.calculateMaxEntriesInNode();
+           MAX_ENTRIES = m;
+           MIN_ENTRIES = (int) (0.4 * m);
+       }
+       return MAX_ENTRIES;
+   }
+   private static int min() { return max() == 0 ? 0 : MIN_ENTRIES; } // -neo fixed deletion
+   /* ------------------------------------------------------------------------ */
 
-    private long blockId; //Unique identifier for disk block
-    private ArrayList<Entry> entries; //Entries of this node
+   private long level;                     // 0 = leaf
+   private long blockId;                   // disk block id
+   private ArrayList<Entry> entries;
 
-    public Node(long level, ArrayList<Entry> entries) {
-        this.level = level;
-        this.entries = entries;
-    }
+   public Node(long level, ArrayList<Entry> entries) {
+       this.level   = level;
+       this.entries = entries;
+   }
+   public Node(long level) {
+       this.level   = level;
+       this.entries = new ArrayList<>();
+       this.blockId = RStarTree.getRootBlockId();
+   }
 
-    public Node (long level) {
-        this.level = level;
-        this.entries = new ArrayList<>();
-        this.blockId = RStarTree.getRootBlockId();
-    }
-    public long getLevel() {
-        return level;
-    }
-    public long getBlockId() {
-        return blockId;
-    }
-    public ArrayList<Entry> getEntries() {
-        return entries;
-    }
-    public void setBlockId(long blockId) {
-        this.blockId = blockId;
-    }
-    public void setEntries(ArrayList<Entry> entries) {
-        this.entries = entries;
-    }
+   public long getLevel()         { return level; }
+   public long getBlockId()       { return blockId; }
+   public ArrayList<Entry> getEntries() { return entries; }
+   public void setBlockId(long id)            { this.blockId = id; }
+   public void setEntries(ArrayList<Entry> e) { this.entries = e; }
 
-    public void addEntry(Entry entry) {
-        entries.add(entry);
-    }
-    static int getMaxEntriesInNode() {
-        return MAX_ENTRIES;
-    }
-    static int getMinEntriesInNode() {
-        return MIN_ENTRIES;
-    }
+   public void addEntry(Entry e)  { entries.add(e); }
+   public void removeEntry(Entry e) { entries.remove(e); }        // -neo fixed deletion
+   public boolean isLeaf()        { return level == RStarTree.getLeafLevel(); } // -neo fixed deletion
+
+   static int getMaxEntriesInNode() { return max(); }             // -neo fixed deletion
+   static int getMinEntriesInNode() { return min(); } 
+   // accessors needed by external classes  // -neo fixed deletion
+   
+
 
     //IMPLEMENT ROOT CONSTRUCTOR
 
