@@ -1,6 +1,8 @@
 import java.util.ArrayList;
 import java.util.Collections;
 
+import javax.management.Query;
+
 //import javax.management.Query; allready used 
 
 public class RStarTree {
@@ -310,4 +312,10 @@ public class RStarTree {
         if (n == null) throw new IllegalStateException("Failed to load child"); // -neo fixed deletion
         return n.getLevel();
     }
+    // Returns the record ids for the skyline query
+    public ArrayList<Long> getSkyline() {
+    Query query = new SkylineQuery();
+    return query.getQueryRecordIDs(DataHandler.readIndexFileBlock(ROOT_BLOCKID));
+}
+
 }
