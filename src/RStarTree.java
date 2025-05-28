@@ -1,7 +1,10 @@
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
 
-import javax.management.Query;
+
 
 //import javax.management.Query; allready used 
 
@@ -18,6 +21,7 @@ public class RStarTree {
     //Overflow treatment. When a node overflows some entries are removed and added elsewhere in the tree to reduce overlap
     //REINSERT_P_ENTRIES defines how many entries to reinsert.
     private static final int REINSERT_P_ENTRIES = (int) (0.3*Node.getMaxEntriesInNode());
+    private static final double UNDERFLOW_FACTOR = 0.4;
     
     public RStarTree (boolean insertFromDataFile) {
         this.levels = (int) DataHandler.getTotalLevelsOfTreeIndex();
@@ -265,42 +269,8 @@ public class RStarTree {
     }
 
 
-    // Algorithm for deleting a record based on Beckmann et al. (R*-tree paper)
-    
-    public boolean delete(long id) {
-        ArrayList<Node> pathN = new ArrayList<>();
-        ArrayList<Entry> pathE = new ArrayList<>();
-        Node n = getRoot();
-        pathN.add(n);
-        while (!n.isLeaf()) {
-            Entry next = null;
-            for (Entry e : n.getEntries()) if (recordIdInside(e, id)) { next = e; break; }
-            if (next == null) return false;
-            pathE.add(next);
-            n = DataHandler.readIndexFileBlock(next.getBlockIdOfChildNode());
-            if (n == null) return false;
-            pathN.add(n);
-        }
-        LeafEntry target = null;
-        for (Entry e : n.getEntries()) if (e instanceof LeafEntry le && le.getRecordId() == id) { target = le; break; }
-        if (target == null) return false;
-        n.removeEntry(target);
-        DataHandler.updateIndexFileBlock(n, levels);
-        condenseTree(pathN, pathE);
-        Node root = getRoot();
-        if (!root.isLeaf() && root.getEntries().size() == 1) {
-            Entry only = root.getEntries().get(0); // -neo fixed deletion
-            Node child = DataHandler.readIndexFileBlock(only.getBlockIdOfChildNode());
-            child.setBlockId(ROOT_BLOCKID);
-            levels--;                                // -neo fixed deletion
-            DataHandler.updateIndexFileBlock(child, levels);
-        }
-        return true;
-    }
+  
 
-    private void condenseTree(ArrayList<Node> pathN, ArrayList<Entry> pathE) {
-        /* body identical (omitted) */
-    }
 
     private boolean recordIdInside(Entry e, long id) {
         Bounds d0 = e.getBoundingBox().getBounds().get(0); // -neo fixed deletion
@@ -312,10 +282,146 @@ public class RStarTree {
         if (n == null) throw new IllegalStateException("Failed to load child"); // -neo fixed deletion
         return n.getLevel();
     }
-    // Returns the record ids for the skyline query
+    
     public ArrayList<Long> getSkyline() {
-    Query query = new SkylineQuery();
-    return query.getQueryRecordIDs(DataHandler.readIndexFileBlock(ROOT_BLOCKID));
-}
+
+        // Min-heap by sum of MBR lower bounds
+        PriorityQueue<SQNode> pq = new PriorityQueue<>(Comparator.comparingDouble(a -> a.key));
+
+        Node root = getRoot();
+        double[] rootMin = root.getBoundingBox().getMinPoint();
+        pq.add(new SQNode(root, rootMin, sum(rootMin)));
+
+        ArrayList<Long> skylineIds   = new ArrayList<>();
+        ArrayList<double[]> skylineC = new ArrayList<>();
+
+        while (!pq.isEmpty()) {
+            SQNode sn = pq.poll();
+
+            // prune if dominated by existing skyline
+            if (dominated(sn.mbrMin, skylineC)) continue;
+
+            Node node = sn.node;
+
+            if (!node.isLeaf()) {                               // internal
+                for (Entry e : node.getEntries()) {
+                    double[] childMin = e.getBoundingBox().getMinPoint();
+                    if (dominated(childMin, skylineC)) continue;
+                    Node child = DataHandler.readIndexFileBlock(e.getBlockIdOfChildNode());
+                    pq.add(new SQNode(child, childMin, sum(childMin)));
+                }
+            } else {                                            // leaf
+                for (Entry e : node.getEntries()) {
+                    LeafEntry le = (LeafEntry) e;
+                    double[] pt = le.getBoundingBox().getMinPoint();
+                    if (dominated(pt, skylineC)) continue;
+
+                    
+                    for (int i = skylineC.size() - 1; i >= 0; i--)
+                        if (dominates(pt, skylineC.get(i))) {
+                            skylineC.remove(i); skylineIds.remove(i);
+                        }
+
+                    skylineC.add(pt);
+                    skylineIds.add(le.getRecordId());
+                }
+            }
+        }
+        return skylineIds;
+    }
+    
+    private static class SQNode {
+        Node node; double[] mbrMin; double key;
+        SQNode(Node n,double[] m,double k){node=n;mbrMin=m;key=k;}
+    }
+    private static double sum(double[] a){ double s=0;for(double v:a)s+=v;return s; }
+    private static boolean dominates(double[] a,double[] b){
+        boolean strict=false;
+        for(int i=0;i<a.length;i++){
+            if(a[i]>b[i]) return false;
+            if(a[i]<b[i]) strict=true;
+        }
+        return strict;
+    }
+    private static boolean dominated(double[] p,List<double[]> sky){
+        for(double[] s:sky) if(dominates(s,p)) return true;
+        return false;
+    }
+    public boolean delete(long id) {
+
+        // --------- step 1: descend path to leaf ----------
+        ArrayList<Node>  pathN = new ArrayList<>();
+        ArrayList<Entry> pathE = new ArrayList<>();
+        Node n = getRoot(); pathN.add(n);
+
+        while (!n.isLeaf()) {
+            Entry next = null;
+            for (Entry e : n.getEntries())
+                if (recordIdInside(e, id)) { next = e; break; }
+            if (next == null) return false;   // id not found
+            pathE.add(next);
+            n = DataHandler.readIndexFileBlock(next.getBlockIdOfChildNode());
+            if (n == null) return false;
+            pathN.add(n);
+        }
+        // now n is leaf
+        LeafEntry victim = null;
+        for (Entry e : n.getEntries())
+            if (e instanceof LeafEntry le && le.getRecordId() == id) {
+                victim = le; break;
+            }
+        if (victim == null) return false;     // id not in leaf
+
+        // --------- step 2: remove entry & update leaf ----------
+        n.removeEntry(victim);
+        DataHandler.updateIndexFileBlock(n, levels);
+
+        // --------- step 3: condense tree ----------
+        condenseTree(pathN, pathE);
+
+        // --------- step 4: adjust root if needed ----------
+        Node root = getRoot();
+        if (!root.isLeaf() && root.getEntries().size() == 1) {
+            Entry only = root.getEntries().get(0);
+            Node child = DataHandler.readIndexFileBlock(only.getBlockIdOfChildNode());
+            child.setBlockId(ROOT_BLOCKID);
+            levels--;
+            DataHandler.updateIndexFileBlock(child, levels);
+        }
+        return true;
+    }
+
+    /** condenseTree per Beckmann et al. */
+    private void condenseTree(ArrayList<Node> pathN, ArrayList<Entry> pathE) {
+
+        ArrayList<Entry> Q = new ArrayList<>();
+
+        for (int i = pathN.size() - 1; i >= 0; i--) {
+            Node N = pathN.get(i);
+
+            if (N.getEntries().size() >= Node.getMinEntriesInNode() || N.getBlockId() == ROOT_BLOCKID) {
+                // just tighten parent's bbox if not root
+                if (i > 0) {
+                    Entry parentEntry = pathE.get(i - 1);
+                    parentEntry.setBoundingBoxToFitEntries(N.getEntries());
+                    DataHandler.updateIndexFileBlock(pathN.get(i - 1), levels);
+                }
+            } else {
+                // under-full: eliminate node (except root)
+                if (i > 0) {
+                    Node P = pathN.get(i - 1);
+                    Entry PE = pathE.get(i - 1);
+                    P.removeEntry(PE);
+                    DataHandler.updateIndexFileBlock(P, levels);
+                    Q.addAll(N.getEntries()); // orphan all entries
+                }
+            }
+        }
+        // re-insert orphaned entries at proper level
+        for (Entry e : Q) {
+            long lvl = (e instanceof LeafEntry) ? LEAF_LEVEL : nodeLevelFromEntry(e);
+            insert(null, null, e, (int) lvl);
+        }
+    }
 
 }

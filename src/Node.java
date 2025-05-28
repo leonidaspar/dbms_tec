@@ -44,11 +44,14 @@ public class Node implements Serializable {
    public void setEntries(ArrayList<Entry> e) { this.entries = e; }
 
    public void addEntry(Entry e)  { entries.add(e); }
-   public void removeEntry(Entry e) { entries.remove(e); }        // -neo fixed deletion
-   public boolean isLeaf()        { return level == RStarTree.getLeafLevel(); } // -neo fixed deletion
+   //public void removeEntry(Entry e) { entries.remove(e); }        // -neo fixed deletion
+  // public boolean isLeaf()        { return level == RStarTree.getLeafLevel(); } // -neo fixed deletion
 
    static int getMaxEntriesInNode() { return max(); }             // -neo fixed deletion
-   static int getMinEntriesInNode() { return min(); } 
+   //static int getMinEntriesInNode() { return min(); } 
+   public static int getMinEntriesInNode() {
+    return (int) Math.ceil(getMaxEntriesInNode() * 0.4); // 40 % occupancy
+}
    // accessors needed by external classes  // -neo fixed deletion
    
 
@@ -168,12 +171,23 @@ public class Node implements Serializable {
         return getSplitIndex(splitAxis);
     }
     /* --- add right after addEntry(...) --- */
-    public void removeEntry(Entry entry) {
-        entries.remove(entry);
-    }
-
+   
     /** Convenience – true when this node’s children are LeafEntry objects */
     public boolean isLeaf() {
         return level == RStarTree.getLeafLevel();
     }
+    // HERE START: bounding box + removeEntry helpers
+public BoundingBox getBoundingBox() {
+    return new BoundingBox(Bounds.findMinBounds(getEntries()));
+}
+
+/** remove a specific Entry object (used by condenseTree) */
+public void removeEntry(Entry e) {
+    int idx = entries.indexOf(e);    // ‘entries’ is your existing List<Entry>
+    if (idx >= 0) {
+        entries.remove(idx);
+    }
+}
+// HERE END: bounding box + removeEntry helpers
+
 }

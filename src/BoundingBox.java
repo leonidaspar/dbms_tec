@@ -1,8 +1,7 @@
 import java.io.Serializable;
-import java.util.ArrayList;
-
 import static java.lang.Math.abs;
 import static java.lang.Math.sqrt;
+import java.util.ArrayList;
 
 //Implementation of a box of N-dimensions
 public class BoundingBox implements Serializable {
@@ -125,4 +124,11 @@ public class BoundingBox implements Serializable {
         }
         return sqrt(distance);
     }
+    /** Returns the lower-corner coordinates as an array. */
+public double[] getMinPoint() {
+    int dim = bounds.size();
+    double[] p = new double[dim];
+    for (int d = 0; d < dim; d++) p[d] = bounds.get(d).getLower();
+    return p;
+}
 }

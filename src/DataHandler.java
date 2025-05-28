@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+
 public class DataHandler {
     private static final String csvFile = "data.csv";
     private static final String dataFilename = "datafile.dat";
@@ -69,6 +70,12 @@ public class DataHandler {
 
     }
 
+    private static final java.util.Set<Long> TOMBSTONES = new java.util.HashSet<>();
+
+    /** Mark a record-id as logically deleted (used by RStarTree.delete). */
+public static void markDeleted(long id) {
+    TOMBSTONES.add(id);
+}
 
     public static void updateBlock0(String pathToFile) throws IOException {
         try {
