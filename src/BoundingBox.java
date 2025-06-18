@@ -18,10 +18,10 @@ public class BoundingBox implements Serializable {
     }
 
     public BoundingBox(ArrayList<Bounds> bounds) {
+        this.bounds = bounds;
         this.volume = getVolume();
         this.perimeter = getPerimeter();
         this.center = getCenter();
-        this.bounds = bounds;
     }
 
     public ArrayList<Bounds> getBounds() {
@@ -29,13 +29,8 @@ public class BoundingBox implements Serializable {
     }
 
     public double getVolume() {
-        if (volume==null) {
-            double product = 1;
-            for (int i = 0; i < DataHandler.getDataDimensions(); i++) {
-                product *= abs(bounds.get(i).getUpper() - bounds.get(i).getLower());
-            }
-            volume = product;
-        }
+        if (volume == null)
+            volume = calculateVolume();
         return volume;
     }
 
@@ -58,6 +53,14 @@ public class BoundingBox implements Serializable {
             }
         }
         return center;
+    }
+
+    private double calculateVolume() {
+        double product = 1;
+        for (int i = 0; i < DataHandler.getDataDimensions(); i++) {
+            product *= (bounds.get(i).getUpper() - bounds.get(i).getLower());
+        }
+        return product;
     }
 
     public double findMinDistance(ArrayList<Double> point) {

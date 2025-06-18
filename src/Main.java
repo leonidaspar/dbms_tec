@@ -5,8 +5,13 @@ import java.util.List;
 public class Main {
 
     public static void main(String[] args) {
+        boolean reconstructingTree = UserInterface.startApplication();
+        RStarTree rStarTree = new RStarTree(reconstructingTree);
+        UserInterface.runApplication(rStarTree);
 
-        DataHandler dataHandler = new DataHandler();
+        //DataHandler dataHandler = new DataHandler();
+
+        /*
 
         try {
             int dataDimensions = 2;                    // adjust if needed
@@ -32,7 +37,7 @@ public class Main {
             e.printStackTrace();
         }
         System.out.println(dataHandler.getMetadata());
-        ------------------------------------------------------------------------------- */
+        -------------------------------------------------------------------------------
 
         // ------------ R*-tree insertion and deletion -test --------------------------
         try {
@@ -45,7 +50,7 @@ public class Main {
             System.out.println("delete id 99 → " + tree.delete(99));  // false expected
         } catch (Exception ex) {
             ex.printStackTrace();
-        }
+        }  */
     }
 }
 

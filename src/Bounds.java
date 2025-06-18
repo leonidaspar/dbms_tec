@@ -8,10 +8,10 @@ public class Bounds implements Serializable {
     private double upper;
     private double lower;
 
-    public Bounds(double upper, double lower) {
+    public Bounds(double lower, double upper) {
         if (lower <= upper) {
-            this.upper = upper;
             this.lower = lower;
+            this.upper = upper;
         }
         else
             throw new IllegalArgumentException("The lower value of the bounds cannot be greater than the upper value.");

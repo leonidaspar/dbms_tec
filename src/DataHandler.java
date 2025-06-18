@@ -19,11 +19,13 @@ public class DataHandler {
    // private static Metadata metadata;
 
 
-    public String getDataFilename() {
+    public static String getCsvFile() {
+        return csvFile;
+    }
+    public static String getDataFilename() {
         return dataFilename;
     }
-
-    public String getIndexFilename() {
+    public static String getIndexFilename() {
         return indexFilename;
     }
     public static int getDataDimensions() {
@@ -46,7 +48,7 @@ public class DataHandler {
         return is.readObject();
     }
 
-    public ArrayList<Integer> readBlock0(String filePath) throws IOException {
+    public static ArrayList<Integer> readBlock0(String filePath) throws IOException {
         try {
             RandomAccessFile raf = new RandomAccessFile(new File(filePath), "rw");
             FileInputStream fis = new FileInputStream(raf.getFD());
@@ -107,11 +109,11 @@ public static void markDeleted(long id) {
         return blocksInDataFile;
     }
 
-    public void initializeDataFile(int dataDimensions) throws IOException {
+    public static void initializeDataFile(int dataDimensions, boolean newFile) {
         try{
             // Checks if a datafile already exists, initialise the metaData from the metadata block (block 0 of the file)
             // If already exists, initialise the variables with the values of the dimensions, block size and total blocks of the data file
-            if (Files.exists(Paths.get(dataFilename)))
+            if (Files.exists(Paths.get(dataFilename)) && !newFile)
             {
                 ArrayList<Integer> dataFileMetaData = readBlock0(dataFilename);
                 if (dataFileMetaData == null)
@@ -150,11 +152,11 @@ public static void markDeleted(long id) {
                 if (blockRecords.size() > 0)
                     writeBlock0(blockRecords);
             }
-        }catch(Exception e){e.printStackTrace();}
+        } catch(Exception e){e.printStackTrace();}
     }
 
 
-    public int calculateMaxRecordsInBlock() {
+    public static int calculateMaxRecordsInBlock() {
         ArrayList<Record> blockRecords = new ArrayList<>();
         int i;
         for (i = 0; i < Integer.MAX_VALUE; i++) {
@@ -177,7 +179,7 @@ public static void markDeleted(long id) {
         return i;
     }
 
-    public void writeBlock0(List<Record> records) {
+    public static void writeBlock0(List<Record> records) {
         try {
             byte[] recordInBytes = serialize(records);
             byte[] goodPutLengthInBytes = serialize(recordInBytes.length);
@@ -287,13 +289,13 @@ public static void markDeleted(long id) {
     }
 
     // Initializes the index file and reads/writes metadata from/to block 0
-    public void initializeIndexFile(int dataDimensions) {
+    public static void initializeIndexFile(int dataDimensions, boolean newFile) {
         try {
-            if (Files.exists(Paths.get(indexFilename))) {
+            if (Files.exists(Paths.get(indexFilename)) && !newFile) {
                 ArrayList<Integer> metadata = readBlock0(indexFilename);
                 if (metadata==null)
                     throw new IllegalStateException("Could not read block 0 from file " + indexFilename);
-                    DataHandler.dataDimensions = metadata.get(0); // neo fixed for deletion
+                DataHandler.dataDimensions = metadata.get(0); // neo fixed for deletion
                 if (DataHandler.dataDimensions <= 0)
                     throw new IllegalStateException("Data dimensions must be greater than 0");
                 if (metadata.get(1) > BLOCK_SIZE)
@@ -326,13 +328,16 @@ public static void markDeleted(long id) {
 
             System.arraycopy(goodPutLengthInBytes, 0, block, 0, goodPutLengthInBytes.length);
             System.arraycopy(nodeInBytes, 0, block, goodPutLengthInBytes.length, nodeInBytes.length);
+
             RandomAccessFile raf = new RandomAccessFile(new File(indexFilename),"rw");
+            raf.seek(node.getBlockId()*BLOCK_SIZE);
             raf.write(block);
             raf.close();
 
             // If this node is the root and the tree level has changed, update the metadata
             if (node.getBlockId() == RStarTree.getRootBlockId() && DataHandler.levelsOfTreeIndex != levelsOfTreeIndex)
                 updateLevelsOfTreeIndexFile();
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
